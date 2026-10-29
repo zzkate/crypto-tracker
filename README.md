@@ -227,6 +227,24 @@ npm run test:coverage # покрытие
 джоба (запуск по интервалу, обработка ошибок, отсутствие параллельных запусков,
 остановка), OpenAPI/Swagger.
 
+## Ручной интеграционный прогон (реальный CoinMarketCap)
+
+В GitHub Actions: **Actions → Integration (CoinMarketCap) → Run workflow**.
+Нужен секрет репозитория `CMC_API_KEY` (Settings → Secrets and variables → Actions).
+Можно задать `symbols` (по умолчанию `BTC,ETH`) и `currency` (по умолчанию `USD`).
+
+Workflow поднимает сервис, добавляет монеты, вызывает `POST /api/sync` (реальный
+запрос в CoinMarketCap) и проверяет, что у каждой монеты появилась цена.
+
+Локально:
+
+```bash
+npm run build
+CMC_API_KEY=... APP_API_KEY=test bash scripts/integration-cmc.sh
+```
+
+Не запускается на push — только вручную; расходует кредиты CoinMarketCap.
+
 ## Ограничения
 
 - Одна валюта на приложение (`PRICE_CURRENCY`, по умолчанию USD).

@@ -1,0 +1,57 @@
+name: Integration (CoinMarketCap)
+
+on:
+  workflow_dispatch:
+    inputs:
+      symbols:
+        description: "Символы через запятую (например, BTC,ETH)"
+        required: false
+        default: "BTC,ETH"
+      currency:
+        description: "Валюта цен (одна, например USD)"
+        required: false
+        default: "USD"
+
+concurrency:
+  group: integration-cmc
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: Real CoinMarketCap sync
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Integration run against CoinMarketCap
+        env:
+          CMC_API_KEY: ${{ secrets.CMC_API_KEY }}
+          APP_API_KEY: integration-${{ github.run_id }}
+          SYMBOLS: ${{ inputs.symbols }}
+          PRICE_CURRENCY: ${{ inputs.currency }}
+          PORT: "3010"
+        run: |
+          if [ -z "${CMC_API_KEY:-}" ]; then
+            echo "::error::Repository secret CMC_API_KEY is not set"
+            exit 1
+          fi
+          bash scripts/integration-cmc.sh
+
+      - name: Server log on failure
+        if: failure()
+        run: cat /tmp/crypto-integration-server.log || true
