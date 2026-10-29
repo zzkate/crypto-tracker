@@ -6,7 +6,7 @@
     "description": "REST API для управления списком отслеживаемых криптовалют, получения актуальных и исторических цен (USD) из CoinMarketCap."
   },
   "servers": [
-    { "url": "http://localhost:3000", "description": "Local" }
+    { "url": "/", "description": "Current host" }
   ],
   "tags": [
     { "name": "System" },
