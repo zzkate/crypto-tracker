@@ -1,0 +1,59 @@
+{
+  "uid": "crypto-tracker",
+  "title": "Crypto Price Tracker",
+  "tags": ["crypto"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Запросы в секунду",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "rate(http_requests_total[1m])", "legendFormat": "requests" },
+        { "refId": "B", "expr": "rate(http_errors_total[1m])", "legendFormat": "errors" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Средняя длительность запроса",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "http_request_duration_ms_avg", "legendFormat": "avg ms" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Синхронизации",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "sync_total", "legendFormat": "total" },
+        { "refId": "B", "expr": "sync_failed_total", "legendFormat": "failed" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Данные",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "expr": "coins_total", "legendFormat": "coins" },
+        { "refId": "B", "expr": "price_points_total", "legendFormat": "price points" }
+      ]
+    }
+  ]
+}

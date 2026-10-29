@@ -1,0 +1,80 @@
+name: Load test
+
+on:
+  workflow_dispatch:
+    inputs:
+      concurrency:
+        description: 'Одновременных запросов'
+        required: false
+        default: '50'
+      duration:
+        description: 'Длительность, секунды'
+        required: false
+        default: '10'
+      endpoint:
+        description: 'Эндпоинт (например /api/coins, /api/prices/latest)'
+        required: false
+        default: '/api/coins'
+
+jobs:
+  load:
+    name: Load test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Start server (без CMC)
+        env:
+          PORT: '3000'
+          APP_API_KEY: 'load-test-key'
+          CMC_API_KEY: ''
+          DB_PATH: '/tmp/load.db'
+        run: |
+          node --disable-warning=ExperimentalWarning dist/server.js >/tmp/load-server.log 2>&1 &
+          echo $! >/tmp/load-server.pid
+
+      - name: Wait for health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null http://127.0.0.1:3000/health; then exit 0; fi
+            sleep 0.2
+          done
+          echo "server did not start"
+          cat /tmp/load-server.log
+          exit 1
+
+      - name: Run load
+        env:
+          APP_API_KEY: 'load-test-key'
+          BASE_URL: 'http://127.0.0.1:3000'
+          CONCURRENCY: ${{ inputs.concurrency }}
+          DURATION_SECONDS: ${{ inputs.duration }}
+          ENDPOINT: ${{ inputs.endpoint }}
+        run: node scripts/load-test.mjs | tee load-results.txt
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-results
+          path: load-results.txt
+          if-no-files-found: ignore
+
+      - name: Stop server
+        if: always()
+        run: kill "$(cat /tmp/load-server.pid)" 2>/dev/null || true

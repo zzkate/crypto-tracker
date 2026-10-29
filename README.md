@@ -126,6 +126,9 @@ docker compose up --build
 | `CMC_BASE_URL` | нет | `https://pro-api.coinmarketcap.com` | Базовый URL CoinMarketCap |
 | `CMC_TIMEOUT_MS` | нет | `5000` | Таймаут запроса к CoinMarketCap |
 | `SYNC_INTERVAL_MS` | нет | `60000` | Интервал фоновой синхронизации |
+| `CMC_BATCH_SIZE` | нет | `100` | Символов в одном запросе к CoinMarketCap |
+| `CMC_MAX_RETRIES` | нет | `2` | Повторов запроса при ошибке CoinMarketCap |
+| `CMC_RETRY_BACKOFF_MS` | нет | `200` | База задержки между повторами, мс |
 | `PRICE_CURRENCY` | нет | `USD` | Единая валюта цен для всего приложения |
 | `DB_PATH` | нет | `data/crypto.db` | Путь к файлу SQLite |
 
@@ -221,11 +224,15 @@ CREATE TABLE price_history (
 
 - При старте (если задан `CMC_API_KEY`) синхронизация выполняется сразу и затем
   каждые `SYNC_INTERVAL_MS`.
-- Одновременные запуски не пересекаются: пока предыдущий не завершился, новый тик пропускается.
+- Символы отправляются батчами по `CMC_BATCH_SIZE`, при ошибке запрос повторяется
+  до `CMC_MAX_RETRIES` раз с экспоненциальной задержкой.
+- Параллельные синхронизации объединяются (coalescing): ручной `POST /api/sync`
+  и фоновая джоба не гоняют одновременные запросы в CMC.
 - При ошибке CoinMarketCap (таймаут/5xx/невалидный ответ) ошибка логируется,
   фоновая джоба продолжает работать, данные не портятся (сначала запрос, потом запись).
-- `SIGINT`/`SIGTERM`: цикл останавливается, HTTP-сервер закрывается, БД закрывается;
-  через 10 секунд — принудительный выход.
+- SQLite работает в режиме WAL с `busy_timeout` — меньше блокировок при параллельных операциях.
+- `SIGINT`/`SIGTERM`: цикл останавливается, HTTP-сервер закрывается (включая idle
+  keep-alive соединения), БД закрывается; через 10 секунд — принудительный выход.
 - Валюта (`PRICE_CURRENCY`) едина для всего приложения и сохраняется в каждой точке истории.
 
 ## Валидация
@@ -240,19 +247,49 @@ CREATE TABLE price_history (
 ## Тесты
 
 ```bash
-npm test              # 59 unit/integration тестов, in-memory SQLite, без сети
+npm test              # 66 unit/integration тестов, in-memory SQLite, без сети
 npm run test:coverage # покрытие
 npm run test:e2e      # 11 E2E-тестов: собранный сервер + мок CMC + HTTP
 ```
 
 Покрыто: аутентификация, CRUD (позитивные и негативные сценарии), история и
-актуальные цены, ручная синхронизация, ошибки/таймауты внешнего API, фоновая
-джоба (запуск по интервалу, обработка ошибок, отсутствие параллельных запусков,
-остановка), OpenAPI/Swagger.
+актуальные цены, ручная синхронизация, батчинг/ретраи/coalescing, ошибки и
+таймауты внешнего API, фоновая джоба, метрики `/metrics`, OpenAPI/Swagger.
 
 E2E дополнительно проверяет реальный запуск `dist/server.js` с конфигом из env:
 CRUD по HTTP, фоновую синхронизацию с локальным мок-сервером CoinMarketCap,
 ошибку/таймаут внешнего API, PATCH no-op и graceful shutdown по `SIGTERM`.
+
+## Мониторинг (Prometheus + Grafana)
+
+`GET /metrics` отдаёт метрики в текстовом формате Prometheus: `http_requests_total`,
+`http_errors_total`, средняя длительность запроса, `sync_total`, `sync_failed_total`,
+`sync_last_success_epoch`, `coins_total`, `price_points_total`.
+
+В docker-compose добавлены сервисы:
+
+- приложение — `:3000`;
+- Prometheus — `:9090` (скрейпит `/metrics`);
+- Grafana — `:3001` (анонимный admin, дашборд «Crypto Price Tracker»).
+
+```bash
+docker compose up -d
+# Grafana: http://localhost:3001, Prometheus: http://localhost:9090
+```
+
+## Нагрузочный тест
+
+`scripts/load-test.mjs` — прогон на стандартном `fetch`, без внешних пакетов.
+
+```bash
+npm run build
+APP_API_KEY=... BASE_URL=http://localhost:3000 CONCURRENCY=50 \
+  DURATION_SECONDS=10 ENDPOINT=/api/coins node scripts/load-test.mjs
+```
+
+В GitHub Actions: **Actions → Load test → Run workflow** (параметры: `concurrency`,
+`duration`, `endpoint`). Сервер поднимается без `CMC_API_KEY`, поэтому кредиты
+CoinMarketCap не расходуются.
 
 ## Ручной интеграционный прогон (реальный CoinMarketCap)
 
