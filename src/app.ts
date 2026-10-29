@@ -1,6 +1,7 @@
 import express from 'express';
 import swaggerUi from 'swagger-ui-express';
 import type { AppContext } from './context';
+import { metricsHandler, metricsMiddleware } from './metrics';
 import { bearerAuth } from './middleware/auth';
 import { errorHandler, notFound } from './middleware/error';
 import openapi from './openapi.json';
@@ -12,10 +13,13 @@ export function createApp(ctx: AppContext): express.Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '16kb' }));
+  app.use(metricsMiddleware);
 
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
+
+  app.get('/metrics', metricsHandler(ctx.db));
 
   app.get('/openapi.json', (_req, res) => {
     res.json(openapi);

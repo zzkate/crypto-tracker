@@ -160,3 +160,80 @@ describe('PriceSyncService with real repository wiring', () => {
     ctx.db.close();
   });
 });
+
+describe('batching, retry, coalescing', () => {
+  it('разбивает символы на батчи', async () => {
+    const calls: string[][] = [];
+    const client: CmcClient = {
+      async fetchPrices(symbols) {
+        calls.push([...symbols]);
+        return new Map(symbols.map((s) => [s, 1]));
+      }
+    };
+
+    const ctx = makeContext({ client });
+    const service = new PriceSyncService(ctx.db, client, ctx.config.currency, {
+      batchSize: 2
+    });
+
+    for (let i = 0; i < 5; i += 1) addCoin(ctx, `S${i}`, `Coin ${i}`);
+
+    const result = await service.syncOnce();
+    expect(result).toEqual({ updated: 5, skipped: 0 });
+    expect(calls.map((c) => c.length)).toEqual([2, 2, 1]);
+
+    ctx.db.close();
+  });
+
+  it('повторяет запрос при ошибке CMC (retry)', async () => {
+    let attempts = 0;
+    const client: CmcClient = {
+      async fetchPrices(symbols) {
+        attempts += 1;
+        if (attempts < 3) throw new Error('transient failure');
+        return new Map(symbols.map((s) => [s, 1]));
+      }
+    };
+
+    const ctx = makeContext({ client });
+    const service = new PriceSyncService(ctx.db, client, ctx.config.currency, {
+      maxRetries: 3,
+      retryBackoffMs: 1
+    });
+    addCoin(ctx, 'BTC', 'Bitcoin');
+
+    const result = await service.syncOnce();
+    expect(result.updated).toBe(1);
+    expect(attempts).toBe(3);
+
+    ctx.db.close();
+  });
+
+  it('объединяет параллельные вызовы в один запрос (coalescing)', async () => {
+    let calls = 0;
+    let release!: () => void;
+    const client: CmcClient = {
+      async fetchPrices(symbols) {
+        calls += 1;
+        await new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        return new Map(symbols.map((s) => [s, 1]));
+      }
+    };
+
+    const ctx = makeContext({ client });
+    const service = new PriceSyncService(ctx.db, client, ctx.config.currency);
+    addCoin(ctx, 'BTC', 'Bitcoin');
+
+    const p1 = service.syncOnce();
+    const p2 = service.syncOnce();
+    expect(calls).toBe(1);
+
+    release();
+    await Promise.all([p1, p2]);
+    expect(calls).toBe(1);
+
+    ctx.db.close();
+  });
+});

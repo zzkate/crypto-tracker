@@ -29,7 +29,10 @@ export function makeContext(overrides?: {
     cmcTimeoutMs: 1000,
     syncIntervalMs: 1000,
     currency: overrides?.currency ?? 'USD',
-    dbPath: ':memory:'
+    dbPath: ':memory:',
+    cmcBatchSize: 100,
+    cmcMaxRetries: 0,
+    cmcRetryBackoffMs: 200
   };
 
   const client: CmcClient =

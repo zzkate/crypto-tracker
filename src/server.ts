@@ -23,7 +23,11 @@ function main(): void {
         }
       };
 
-  const syncService = new PriceSyncService(db, client, config.currency);
+  const syncService = new PriceSyncService(db, client, config.currency, {
+    batchSize: config.cmcBatchSize,
+    maxRetries: config.cmcMaxRetries,
+    retryBackoffMs: config.cmcRetryBackoffMs
+  });
 
   if (config.cmcApiKey) {
     const job = startPriceSync({ sync: syncService, intervalMs: config.syncIntervalMs });
@@ -37,6 +41,11 @@ function main(): void {
   const server = app.listen(config.port, () => {
     console.log(`[server] listening on :${config.port}`);
   });
+
+  // Защита от медленных/зависших клиентов.
+  server.requestTimeout = 30_000;
+  server.headersTimeout = 30_000;
+  server.keepAliveTimeout = 5_000;
 
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals): void => {

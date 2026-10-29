@@ -7,6 +7,9 @@ export interface AppConfig {
   syncIntervalMs: number;
   currency: string;
   dbPath: string;
+  cmcBatchSize: number;
+  cmcMaxRetries: number;
+  cmcRetryBackoffMs: number;
 }
 
 function positiveInt(value: string | undefined, fallback: number, name: string): number {
@@ -14,6 +17,15 @@ function positiveInt(value: string | undefined, fallback: number, name: string):
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new Error(`${name} must be a positive integer`);
+  }
+  return parsed;
+}
+
+function nonNegativeInt(value: string | undefined, fallback: number, name: string): number {
+  if (value === undefined || value.trim() === '') return fallback;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) {
+    throw new Error(`${name} must be a non-negative integer`);
   }
   return parsed;
 }
@@ -37,6 +49,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     cmcTimeoutMs: positiveInt(env.CMC_TIMEOUT_MS, 5000, 'CMC_TIMEOUT_MS'),
     syncIntervalMs: positiveInt(env.SYNC_INTERVAL_MS, 60_000, 'SYNC_INTERVAL_MS'),
     currency,
-    dbPath: env.DB_PATH?.trim() || 'data/crypto.db'
+    dbPath: env.DB_PATH?.trim() || 'data/crypto.db',
+    cmcBatchSize: positiveInt(env.CMC_BATCH_SIZE, 100, 'CMC_BATCH_SIZE'),
+    cmcMaxRetries: nonNegativeInt(env.CMC_MAX_RETRIES, 2, 'CMC_MAX_RETRIES'),
+    cmcRetryBackoffMs: positiveInt(env.CMC_RETRY_BACKOFF_MS, 200, 'CMC_RETRY_BACKOFF_MS')
   };
 }
