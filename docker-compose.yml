@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      PORT: 3000
+      APP_API_KEY: ${APP_API_KEY:?APP_API_KEY is required}
+      CMC_API_KEY: ${CMC_API_KEY:-}
+      CMC_BASE_URL: ${CMC_BASE_URL:-https://pro-api.coinmarketcap.com}
+      CMC_TIMEOUT_MS: ${CMC_TIMEOUT_MS:-5000}
+      SYNC_INTERVAL_MS: ${SYNC_INTERVAL_MS:-60000}
+      PRICE_CURRENCY: ${PRICE_CURRENCY:-USD}
+      DB_PATH: /data/crypto.db
+    volumes:
+      - crypto-data:/data
+    restart: unless-stopped
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  crypto-data:
