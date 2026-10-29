@@ -8,5 +8,9 @@ data/
 *.sqlite3
 .env
 .env.local
+
+# IDE
+.idea/
+
 npm-debug.log*
 .DS_Store
