@@ -14,8 +14,8 @@
 set -euo pipefail
 
 : "${CMC_API_KEY:?CMC_API_KEY is required}"
+: "${APP_API_KEY:?APP_API_KEY is required}"
 
-APP_API_KEY="${APP_API_KEY:-integration-test-key}"
 SYMBOLS="${SYMBOLS:-BTC,ETH}"
 PRICE_CURRENCY="${PRICE_CURRENCY:-USD}"
 PORT="${PORT:-3010}"

@@ -240,7 +240,7 @@ Workflow поднимает сервис, добавляет монеты, вы�
 
 ```bash
 npm run build
-CMC_API_KEY=... APP_API_KEY=test bash scripts/integration-cmc.sh
+CMC_API_KEY=... APP_API_KEY=... bash scripts/integration-cmc.sh
 ```
 
 Не запускается на push — только вручную; расходует кредиты CoinMarketCap.

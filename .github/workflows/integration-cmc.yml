@@ -41,13 +41,17 @@ jobs:
       - name: Integration run against CoinMarketCap
         env:
           CMC_API_KEY: ${{ secrets.CMC_API_KEY }}
-          APP_API_KEY: integration-${{ github.run_id }}
+          APP_API_KEY: ${{ secrets.APP_API_KEY }}
           SYMBOLS: ${{ inputs.symbols }}
           PRICE_CURRENCY: ${{ inputs.currency }}
           PORT: "3010"
         run: |
           if [ -z "${CMC_API_KEY:-}" ]; then
             echo "::error::Repository secret CMC_API_KEY is not set"
+            exit 1
+          fi
+          if [ -z "${APP_API_KEY:-}" ]; then
+            echo "::error::Repository secret APP_API_KEY is not set"
             exit 1
           fi
           bash scripts/integration-cmc.sh

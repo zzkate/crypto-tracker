@@ -52,10 +52,21 @@ jobs:
       - name: Build image
         run: docker build -t crypto-tracker:ci .
 
+      - name: Check APP_API_KEY secret
+        env:
+          APP_API_KEY: ${{ secrets.APP_API_KEY }}
+        run: |
+          if [ -z "$APP_API_KEY" ]; then
+            echo "::error::Repository secret APP_API_KEY is not set"
+            exit 1
+          fi
+
       - name: Run container
+        env:
+          APP_API_KEY: ${{ secrets.APP_API_KEY }}
         run: |
           docker run -d --name crypto-tracker-ci -p 3000:3000 \
-            -e APP_API_KEY=ci-test-key \
+            -e APP_API_KEY="$APP_API_KEY" \
             -e DB_PATH=/data/crypto.db \
             crypto-tracker:ci
 
