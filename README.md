@@ -231,6 +231,7 @@ CREATE TABLE price_history (
 - При ошибке CoinMarketCap (таймаут/5xx/невалидный ответ) ошибка логируется,
   фоновая джоба продолжает работать, данные не портятся (сначала запрос, потом запись).
 - SQLite работает в режиме WAL с `busy_timeout` — меньше блокировок при параллельных операциях.
+- Prepared statements кэшируются на соединение (WeakMap) — SQL не перекомпилируется на каждый запрос.
 - `SIGINT`/`SIGTERM`: цикл останавливается, HTTP-сервер закрывается (включая idle
   keep-alive соединения), БД закрывается; через 10 секунд — принудительный выход.
 - Валюта (`PRICE_CURRENCY`) едина для всего приложения и сохраняется в каждой точке истории.
@@ -280,16 +281,30 @@ docker compose up -d
 ## Нагрузочный тест
 
 `scripts/load-test.mjs` — прогон на стандартном `fetch`, без внешних пакетов.
+Два режима: `single` (фиксированная конкурентность) и `sweep` (перебор
+конкурентности с поиском максимума).
 
 ```bash
 npm run build
+
+# один прогон
 APP_API_KEY=... BASE_URL=http://localhost:3000 CONCURRENCY=50 \
-  DURATION_SECONDS=10 ENDPOINT=/api/coins node scripts/load-test.mjs
+  DURATION_SECONDS=10 ENDPOINT=/api/coins npm run load
+
+# поиск максимума конкурентности для чтения
+APP_API_KEY=... BASE_URL=http://localhost:3000 npm run load:sweep
+
+# нагрузка на запись (POST /api/coins, уникальные символы через {{n}})
+APP_API_KEY=... BASE_URL=http://localhost:3000 MODE=sweep METHOD=POST \
+  BODY='{"symbol":"W{{n}}","name":"Coin {{n}}"}' node scripts/load-test.mjs
 ```
 
+Параметры sweep: `SWEEP_START`, `SWEEP_END`, `SWEEP_STEP`, `SWEEP_DURATION_MS`,
+`P95_LIMIT_MS`.
+
 В GitHub Actions: **Actions → Load test → Run workflow** (параметры: `concurrency`,
-`duration`, `endpoint`). Сервер поднимается без `CMC_API_KEY`, поэтому кредиты
-CoinMarketCap не расходуются.
+`duration`, `endpoint`, `mode`, `method`, `body`, `sweep_end`). Сервер поднимается
+без `CMC_API_KEY`, поэтому кредиты CoinMarketCap не расходуются.
 
 ## Ручной интеграционный прогон (реальный CoinMarketCap)
 

@@ -1,8 +1,27 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { DatabaseSync, type StatementSync } from 'node:sqlite';
 
 export type Db = DatabaseSync;
+
+// Кэш prepared statements по соединению. WeakMap не держит соединение живым:
+// после db.close() записи уходят из памяти вместе с соединением.
+const statementCache = new WeakMap<Db, Map<string, StatementSync>>();
+
+/** Возвращает закэшированный prepared statement для данного соединения. */
+export function prepare(db: Db, sql: string): StatementSync {
+  let byDb = statementCache.get(db);
+  if (!byDb) {
+    byDb = new Map();
+    statementCache.set(db, byDb);
+  }
+  let stmt = byDb.get(sql);
+  if (!stmt) {
+    stmt = db.prepare(sql);
+    byDb.set(sql, stmt);
+  }
+  return stmt;
+}
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS coins (

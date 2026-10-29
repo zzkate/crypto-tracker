@@ -1,4 +1,4 @@
-import type { Db } from '../db';
+import { prepare, type Db } from '../db';
 
 export interface Coin {
   id: number;
@@ -33,9 +33,10 @@ export function createCoin(
   db: Db,
   input: { symbol: string; name: string; priceCurrency: string; createdAt: string }
 ): Coin {
-  const info = db
-    .prepare('INSERT INTO coins (symbol, name, price_currency, created_at) VALUES (?, ?, ?, ?)')
-    .run(input.symbol, input.name, input.priceCurrency, input.createdAt);
+  const info = prepare(
+    db,
+    'INSERT INTO coins (symbol, name, price_currency, created_at) VALUES (?, ?, ?, ?)'
+  ).run(input.symbol, input.name, input.priceCurrency, input.createdAt);
 
   const coin = getCoin(db, Number(info.lastInsertRowid));
   if (!coin) {
@@ -45,17 +46,17 @@ export function createCoin(
 }
 
 export function listCoins(db: Db): Coin[] {
-  const rows = db.prepare('SELECT * FROM coins ORDER BY id ASC').all() as unknown as CoinRow[];
+  const rows = prepare(db, 'SELECT * FROM coins ORDER BY id ASC').all() as unknown as CoinRow[];
   return rows.map(toCoin);
 }
 
 export function getCoin(db: Db, id: number): Coin | null {
-  const row = db.prepare('SELECT * FROM coins WHERE id = ?').get(id) as unknown as CoinRow | undefined;
+  const row = prepare(db, 'SELECT * FROM coins WHERE id = ?').get(id) as unknown as CoinRow | undefined;
   return row ? toCoin(row) : null;
 }
 
 export function findCoinBySymbol(db: Db, symbol: string): Coin | null {
-  const row = db.prepare('SELECT * FROM coins WHERE symbol = ?').get(symbol) as unknown as
+  const row = prepare(db, 'SELECT * FROM coins WHERE symbol = ?').get(symbol) as unknown as
     | CoinRow
     | undefined;
   return row ? toCoin(row) : null;
@@ -69,7 +70,7 @@ export function updateCoin(
   const current = getCoin(db, id);
   if (!current) return null;
 
-  db.prepare('UPDATE coins SET symbol = ?, name = ? WHERE id = ?').run(
+  prepare(db, 'UPDATE coins SET symbol = ?, name = ? WHERE id = ?').run(
     patch.symbol ?? current.symbol,
     patch.name ?? current.name,
     id
@@ -78,10 +79,10 @@ export function updateCoin(
 }
 
 export function deleteCoin(db: Db, id: number): boolean {
-  const info = db.prepare('DELETE FROM coins WHERE id = ?').run(id);
+  const info = prepare(db, 'DELETE FROM coins WHERE id = ?').run(id);
   return Number(info.changes) > 0;
 }
 
 export function touchCoin(db: Db, id: number, updatedAt: string): void {
-  db.prepare('UPDATE coins SET last_updated_at = ? WHERE id = ?').run(updatedAt, id);
+  prepare(db, 'UPDATE coins SET last_updated_at = ? WHERE id = ?').run(updatedAt, id);
 }

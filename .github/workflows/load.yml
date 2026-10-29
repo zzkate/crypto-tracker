@@ -15,6 +15,22 @@ on:
         description: 'Эндпоинт (например /api/coins, /api/prices/latest)'
         required: false
         default: '/api/coins'
+      mode:
+        description: 'single или sweep (поиск максимума конкурентности)'
+        required: false
+        default: 'single'
+      method:
+        description: 'HTTP-метод (GET/POST)'
+        required: false
+        default: 'GET'
+      body:
+        description: 'Тело для POST/PUT/PATCH, JSON с {{n}} (например {"symbol":"W{{n}}","name":"Coin {{n}}"})'
+        required: false
+        default: ''
+      sweep_end:
+        description: 'Верхняя граница конкурентности для sweep'
+        required: false
+        default: '300'
 
 jobs:
   load:
@@ -65,6 +81,10 @@ jobs:
           CONCURRENCY: ${{ inputs.concurrency }}
           DURATION_SECONDS: ${{ inputs.duration }}
           ENDPOINT: ${{ inputs.endpoint }}
+          MODE: ${{ inputs.mode }}
+          METHOD: ${{ inputs.method }}
+          BODY: ${{ inputs.body }}
+          SWEEP_END: ${{ inputs.sweep_end }}
         run: node scripts/load-test.mjs | tee load-results.txt
 
       - name: Upload results

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import type { Db } from './db';
+import { prepare, type Db } from './db';
 
 // Простые счётчики (Node однопоточен, атомарность приращений не требуется).
 let httpRequestsTotal = 0;
@@ -41,9 +41,9 @@ export function __resetMetricsForTests(): void {
 
 export function metricsHandler(db: Db): RequestHandler {
   return (_req, res) => {
-    const coinsTotal = (db.prepare('SELECT COUNT(*) AS n FROM coins').get() as { n: number }).n;
+    const coinsTotal = (prepare(db, 'SELECT COUNT(*) AS n FROM coins').get() as { n: number }).n;
     const pointsTotal = (
-      db.prepare('SELECT COUNT(*) AS n FROM price_history').get() as { n: number }
+      prepare(db, 'SELECT COUNT(*) AS n FROM price_history').get() as { n: number }
     ).n;
     const avgMs = httpRequestsTotal ? httpDurationMsSum / httpRequestsTotal : 0;
 

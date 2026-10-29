@@ -1,4 +1,4 @@
-import type { Db } from '../db';
+import { prepare, type Db } from '../db';
 
 export interface PricePoint {
   id: number;
@@ -52,9 +52,10 @@ export function insertPrice(
   currency: string,
   fetchedAt: string
 ): PricePoint {
-  const info = db
-    .prepare('INSERT INTO price_history (coin_id, price, currency, fetched_at) VALUES (?, ?, ?, ?)')
-    .run(coinId, price, currency, fetchedAt);
+  const info = prepare(
+    db,
+    'INSERT INTO price_history (coin_id, price, currency, fetched_at) VALUES (?, ?, ?, ?)'
+  ).run(coinId, price, currency, fetchedAt);
 
   return {
     id: Number(info.lastInsertRowid),
@@ -83,41 +84,38 @@ export function listPrices(
   }
   params.push(options.limit);
 
-  const rows = db
-    .prepare(
-      `SELECT * FROM price_history WHERE ${clauses.join(' AND ')}
-       ORDER BY fetched_at DESC, id DESC LIMIT ?`
-    )
-    .all(...params) as unknown as PriceRow[];
+  const rows = prepare(
+    db,
+    `SELECT * FROM price_history WHERE ${clauses.join(' AND ')}
+     ORDER BY fetched_at DESC, id DESC LIMIT ?`
+  ).all(...params) as unknown as PriceRow[];
 
   return rows.map(toPricePoint);
 }
 
 export function getLatestPrice(db: Db, coinId: number): PricePoint | null {
-  const row = db
-    .prepare(
-      'SELECT * FROM price_history WHERE coin_id = ? ORDER BY fetched_at DESC, id DESC LIMIT 1'
-    )
-    .get(coinId) as unknown as PriceRow | undefined;
+  const row = prepare(
+    db,
+    'SELECT * FROM price_history WHERE coin_id = ? ORDER BY fetched_at DESC, id DESC LIMIT 1'
+  ).get(coinId) as unknown as PriceRow | undefined;
 
   return row ? toPricePoint(row) : null;
 }
 
 export function listLatestPrices(db: Db): LatestPrice[] {
-  const rows = db
-    .prepare(
-      `SELECT c.id AS coin_id, c.symbol, c.name, c.price_currency,
-              p.price, p.currency, p.fetched_at
-       FROM coins c
-       LEFT JOIN price_history p ON p.id = (
-         SELECT id FROM price_history
-         WHERE coin_id = c.id
-         ORDER BY fetched_at DESC, id DESC
-         LIMIT 1
-       )
-       ORDER BY c.id ASC`
-    )
-    .all() as unknown as LatestRow[];
+  const rows = prepare(
+    db,
+    `SELECT c.id AS coin_id, c.symbol, c.name, c.price_currency,
+            p.price, p.currency, p.fetched_at
+     FROM coins c
+     LEFT JOIN price_history p ON p.id = (
+       SELECT id FROM price_history
+       WHERE coin_id = c.id
+       ORDER BY fetched_at DESC, id DESC
+       LIMIT 1
+     )
+     ORDER BY c.id ASC`
+  ).all() as unknown as LatestRow[];
 
   return rows.map((row) => ({
     coinId: row.coin_id,
