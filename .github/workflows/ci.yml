@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & tests (Node 22)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript build
+        run: npm run build
+
+      # Тесты используют моки CoinMarketCap, реальный CMC_API_KEY не нужен.
+      - name: Tests (Jest + Supertest)
+        run: npm run test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker build & smoke
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t crypto-tracker:ci .
+
+      - name: Run container
+        run: |
+          docker run -d --name crypto-tracker-ci -p 3000:3000 \
+            -e APP_API_KEY=ci-test-key \
+            -e DB_PATH=/data/crypto.db \
+            crypto-tracker:ci
+
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/health; then
+              echo
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Container did not become healthy"
+          docker logs crypto-tracker-ci
+          exit 1
+
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs crypto-tracker-ci || true
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f crypto-tracker-ci || true
