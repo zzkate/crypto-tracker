@@ -69,7 +69,7 @@ export function insertPrice(
 export function listPrices(
   db: Db,
   coinId: number,
-  options: { from?: string; to?: string; limit: number }
+  options: { from?: string; to?: string; limit: number; offset: number }
 ): PricePoint[] {
   const clauses = ['coin_id = ?'];
   const params: Array<string | number> = [coinId];
@@ -82,15 +82,39 @@ export function listPrices(
     clauses.push('fetched_at <= ?');
     params.push(options.to);
   }
-  params.push(options.limit);
+  params.push(options.limit, options.offset);
 
   const rows = prepare(
     db,
     `SELECT * FROM price_history WHERE ${clauses.join(' AND ')}
-     ORDER BY fetched_at DESC, id DESC LIMIT ?`
+     ORDER BY fetched_at DESC, id DESC LIMIT ? OFFSET ?`
   ).all(...params) as unknown as PriceRow[];
 
   return rows.map(toPricePoint);
+}
+
+export function countPrices(
+  db: Db,
+  coinId: number,
+  options: { from?: string; to?: string } = {}
+): number {
+  const clauses = ['coin_id = ?'];
+  const params: Array<string | number> = [coinId];
+
+  if (options.from) {
+    clauses.push('fetched_at >= ?');
+    params.push(options.from);
+  }
+  if (options.to) {
+    clauses.push('fetched_at <= ?');
+    params.push(options.to);
+  }
+
+  return (
+    prepare(db, `SELECT COUNT(*) AS n FROM price_history WHERE ${clauses.join(' AND ')}`).get(
+      ...params
+    ) as { n: number }
+  ).n;
 }
 
 export function getLatestPrice(db: Db, coinId: number): PricePoint | null {
@@ -102,14 +126,13 @@ export function getLatestPrice(db: Db, coinId: number): PricePoint | null {
   return row ? toPricePoint(row) : null;
 }
 
-export function listLatestPrices(db: Db): LatestPrice[] {
+export function listLatestPrices(
+  db: Db,
+  pagination?: { limit: number; offset: number }
+): LatestPrice[] {
   // Каждый подзапрос — это index-seek по (coin_id, fetched_at DESC, id DESC),
   // т.е. уже оптимально: берём первую строку в индексе для монеты.
-  // Нельзя заменять на MAX(id): последняя строка определяется по fetched_at,
-  // а не по порядку вставки.
-  const rows = prepare(
-    db,
-    `SELECT c.id AS coin_id, c.symbol, c.name, c.price_currency,
+  const base = `SELECT c.id AS coin_id, c.symbol, c.name, c.price_currency,
             p.price, p.currency, p.fetched_at
      FROM coins c
      LEFT JOIN price_history p ON p.id = (
@@ -117,9 +140,15 @@ export function listLatestPrices(db: Db): LatestPrice[] {
        WHERE coin_id = c.id
        ORDER BY fetched_at DESC, id DESC
        LIMIT 1
-     )
-     ORDER BY c.id ASC`
-  ).all() as unknown as LatestRow[];
+     )`;
+  const rows = (
+    pagination
+      ? prepare(db, `${base} ORDER BY c.id ASC LIMIT ? OFFSET ?`).all(
+          pagination.limit,
+          pagination.offset
+        )
+      : prepare(db, `${base} ORDER BY c.id ASC`).all()
+  ) as unknown as LatestRow[];
 
   return rows.map((row) => ({
     coinId: row.coin_id,

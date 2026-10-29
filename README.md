@@ -163,6 +163,11 @@ Authorization: Bearer <APP_API_KEY>
 `PATCH /api/coins/:id` идемпотентен: если `symbol`/`name` совпадают с текущими,
 возвращается `200` с заголовком `X-Changed: false`, а UPDATE в БД не выполняется.
 
+Списочные эндпоинты (`GET /api/coins`, `GET /api/prices/latest`,
+`GET /api/coins/:id/prices`) поддерживают пагинацию: `limit` (1–1000, по умолчанию
+100) и `offset` (по умолчанию 0); заголовок `X-Total-Count` возвращает общее число
+записей.
+
 ### Примеры
 
 ```bash

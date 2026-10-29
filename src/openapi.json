@@ -40,9 +40,19 @@
       "get": {
         "tags": ["Coins"],
         "summary": "Список отслеживаемых криптовалют",
+        "parameters": [
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Offset" }
+        ],
         "responses": {
           "200": {
             "description": "Массив монет",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Общее число монет",
+                "schema": { "type": "integer" }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Coin" } }
@@ -152,11 +162,18 @@
             "name": "limit",
             "in": "query",
             "schema": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 }
-          }
+          },
+          { "$ref": "#/components/parameters/Offset" }
         ],
         "responses": {
           "200": {
             "description": "Точки истории (сначала новые)",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Общее число точек истории с учётом фильтров",
+                "schema": { "type": "integer" }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": { "type": "array", "items": { "$ref": "#/components/schemas/PricePoint" } }
@@ -191,9 +208,19 @@
       "get": {
         "tags": ["Prices"],
         "summary": "Актуальные цены всех отслеживаемых монет",
+        "parameters": [
+          { "$ref": "#/components/parameters/Limit" },
+          { "$ref": "#/components/parameters/Offset" }
+        ],
         "responses": {
           "200": {
             "description": "Последняя цена по каждой монете (price/fetchedAt могут быть null, если синхронизации ещё не было)",
+            "headers": {
+              "X-Total-Count": {
+                "description": "Общее число монет",
+                "schema": { "type": "integer" }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -238,6 +265,16 @@
         "in": "path",
         "required": true,
         "schema": { "type": "integer", "minimum": 1 }
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 1, "maximum": 1000, "default": 100 }
+      },
+      "Offset": {
+        "name": "offset",
+        "in": "query",
+        "schema": { "type": "integer", "minimum": 0, "default": 0 }
       }
     },
     "responses": {

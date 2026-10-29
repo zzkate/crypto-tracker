@@ -52,26 +52,52 @@ export function parseCoinInput(body: unknown, partial: boolean): Partial<CoinInp
   return result;
 }
 
+function intParam(
+  query: Request['query'],
+  name: string,
+  fallback: number,
+  min: number,
+  max: number
+): number {
+  const value = query[name];
+  if (value === undefined) return fallback;
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) bad(`${name} must be an integer`);
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed < min || parsed > max) {
+    bad(`${name} must be between ${min} and ${max}`);
+  }
+  return parsed;
+}
+
+export interface Pagination {
+  limit: number;
+  offset: number;
+}
+
+export function parsePagination(query: Request['query']): Pagination {
+  return {
+    limit: intParam(query, 'limit', 100, 1, 1000),
+    offset: intParam(query, 'offset', 0, 0, Number.MAX_SAFE_INTEGER)
+  };
+}
+
 export function parseHistoryQuery(query: Request['query']): {
   from?: string;
   to?: string;
   limit: number;
+  offset: number;
 } {
   const from = parseDate(query.from, 'from');
   const to = parseDate(query.to, 'to');
   if (from && to && from > to) bad('from must be earlier than or equal to to');
 
-  let limit = 100;
-  if (query.limit !== undefined) {
-    const raw = Array.isArray(query.limit) ? query.limit[0] : query.limit;
-    if (typeof raw !== 'string' || !/^\d+$/.test(raw)) bad('limit must be a positive integer');
-    limit = Number(raw);
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 1000) {
-      bad('limit must be between 1 and 1000');
-    }
-  }
-
-  return { from, to, limit };
+  return {
+    from,
+    to,
+    limit: intParam(query, 'limit', 100, 1, 1000),
+    offset: intParam(query, 'offset', 0, 0, Number.MAX_SAFE_INTEGER)
+  };
 }
 
 function parseDate(value: unknown, name: string): string | undefined {

@@ -3,14 +3,15 @@ import type { AppContext } from '../context';
 import { isUniqueViolation } from '../db';
 import { HttpError } from '../middleware/error';
 import {
+  countCoins,
   createCoin,
   deleteCoin,
   getCoin,
   listCoins,
   updateCoin
 } from '../repositories/coins';
-import { getLatestPrice, listPrices } from '../repositories/prices';
-import { parseCoinInput, parseHistoryQuery, parseId } from '../validation';
+import { countPrices, getLatestPrice, listPrices } from '../repositories/prices';
+import { parseCoinInput, parseHistoryQuery, parseId, parsePagination } from '../validation';
 import { handle } from './helpers';
 
 export function coinsRouter(ctx: AppContext): Router {
@@ -43,8 +44,10 @@ export function coinsRouter(ctx: AppContext): Router {
 
   router.get(
     '/',
-    handle((_req, res) => {
-      res.json(listCoins(ctx.db));
+    handle((req, res) => {
+      const { limit, offset } = parsePagination(req.query);
+      res.set('X-Total-Count', String(countCoins(ctx.db)));
+      res.json(listCoins(ctx.db, { limit, offset }));
     })
   );
 
@@ -105,8 +108,9 @@ export function coinsRouter(ctx: AppContext): Router {
       const id = parseId(req.params.id);
       if (!getCoin(ctx.db, id)) throw new HttpError(404, 'coin not found', 'not_found');
 
-      const { from, to, limit } = parseHistoryQuery(req.query);
-      res.json(listPrices(ctx.db, id, { from, to, limit }));
+      const { from, to, limit, offset } = parseHistoryQuery(req.query);
+      res.set('X-Total-Count', String(countPrices(ctx.db, id, { from, to })));
+      res.json(listPrices(ctx.db, id, { from, to, limit, offset }));
     })
   );
 

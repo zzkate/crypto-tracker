@@ -45,9 +45,20 @@ export function createCoin(
   return coin;
 }
 
-export function listCoins(db: Db): Coin[] {
+export function listCoins(db: Db, pagination?: { limit: number; offset: number }): Coin[] {
+  if (pagination) {
+    const rows = prepare(db, 'SELECT * FROM coins ORDER BY id ASC LIMIT ? OFFSET ?').all(
+      pagination.limit,
+      pagination.offset
+    ) as unknown as CoinRow[];
+    return rows.map(toCoin);
+  }
   const rows = prepare(db, 'SELECT * FROM coins ORDER BY id ASC').all() as unknown as CoinRow[];
   return rows.map(toCoin);
+}
+
+export function countCoins(db: Db): number {
+  return (prepare(db, 'SELECT COUNT(*) AS n FROM coins').get() as { n: number }).n;
 }
 
 export function getCoin(db: Db, id: number): Coin | null {
