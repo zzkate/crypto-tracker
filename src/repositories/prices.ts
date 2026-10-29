@@ -103,6 +103,10 @@ export function getLatestPrice(db: Db, coinId: number): PricePoint | null {
 }
 
 export function listLatestPrices(db: Db): LatestPrice[] {
+  // Каждый подзапрос — это index-seek по (coin_id, fetched_at DESC, id DESC),
+  // т.е. уже оптимально: берём первую строку в индексе для монеты.
+  // Нельзя заменять на MAX(id): последняя строка определяется по fetched_at,
+  // а не по порядку вставки.
   const rows = prepare(
     db,
     `SELECT c.id AS coin_id, c.symbol, c.name, c.price_currency,
