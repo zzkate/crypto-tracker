@@ -2,7 +2,7 @@ import request from 'supertest';
 import { createCoin } from '../src/repositories/coins';
 import { insertPrice } from '../src/repositories/prices';
 import type { CmcClient } from '../src/services/coinmarketcap';
-import { PriceSyncService } from '../src/services/sync';
+import { isRetryableError, PriceSyncService } from '../src/services/sync';
 import { AUTH, makeContext, type TestContext } from './helpers';
 
 function addCoin(ctx: TestContext, symbol: string, name: string): number {
@@ -233,6 +233,70 @@ describe('batching, retry, coalescing', () => {
     release();
     await Promise.all([p1, p2]);
     expect(calls).toBe(1);
+
+    ctx.db.close();
+  });
+});
+
+describe('retry policy', () => {
+  it('isRetryableError: сеть/таймаут и 5xx/429 — true, 4xx — false', () => {
+    expect(isRetryableError(new Error('ECONNREFUSED'))).toBe(true);
+    expect(isRetryableError({ response: { status: 500 } })).toBe(true);
+    expect(isRetryableError({ response: { status: 502 } })).toBe(true);
+    expect(isRetryableError({ response: { status: 429 } })).toBe(true);
+
+    expect(isRetryableError({ response: { status: 400 } })).toBe(false);
+    expect(isRetryableError({ response: { status: 401 } })).toBe(false);
+    expect(isRetryableError({ response: { status: 403 } })).toBe(false);
+    expect(isRetryableError({ response: { status: 404 } })).toBe(false);
+  });
+
+  it('не ретраит 4xx (401)', async () => {
+    let attempts = 0;
+    const client: CmcClient = {
+      async fetchPrices() {
+        attempts += 1;
+        const err = new Error('unauthorized') as Error & { response: { status: number } };
+        err.response = { status: 401 };
+        throw err;
+      }
+    };
+    const ctx = makeContext({ client });
+    const service = new PriceSyncService(ctx.db, client, ctx.config.currency, {
+      maxRetries: 3,
+      retryBackoffMs: 1
+    });
+    addCoin(ctx, 'BTC', 'Bitcoin');
+
+    await expect(service.syncOnce()).rejects.toThrow('unauthorized');
+    expect(attempts).toBe(1);
+
+    ctx.db.close();
+  });
+
+  it('ретраит 429 и затем успешно', async () => {
+    let attempts = 0;
+    const client: CmcClient = {
+      async fetchPrices(symbols) {
+        attempts += 1;
+        if (attempts === 1) {
+          const err = new Error('rate limited') as Error & { response: { status: number } };
+          err.response = { status: 429 };
+          throw err;
+        }
+        return new Map(symbols.map((s) => [s, 42]));
+      }
+    };
+    const ctx = makeContext({ client });
+    const service = new PriceSyncService(ctx.db, client, ctx.config.currency, {
+      maxRetries: 3,
+      retryBackoffMs: 1
+    });
+    addCoin(ctx, 'BTC', 'Bitcoin');
+
+    const result = await service.syncOnce();
+    expect(result.updated).toBe(1);
+    expect(attempts).toBe(2);
 
     ctx.db.close();
   });

@@ -17,6 +17,17 @@ export interface SyncOptions {
   retryBackoffMs?: number;
 }
 
+/**
+ * Ретраим только ошибки, которые имеют смысл повторять:
+ * сеть/таймаут (нет HTTP-ответа), 429 (rate limit) и 5xx.
+ * 4xx (401/403/404…) повторять бессмысленно.
+ */
+export function isRetryableError(error: unknown): boolean {
+  const status = (error as { response?: { status?: unknown } } | undefined)?.response?.status;
+  if (typeof status !== 'number') return true;
+  return status === 429 || status >= 500;
+}
+
 export class PriceSyncService {
   private readonly batchSize: number;
   private readonly maxRetries: number;
@@ -91,11 +102,13 @@ export class PriceSyncService {
         return await this.client.fetchPrices(symbols, this.currency);
       } catch (error) {
         lastError = error;
-        if (attempt < this.maxRetries) {
+        if (attempt < this.maxRetries && isRetryableError(error)) {
           await new Promise((resolve) =>
             setTimeout(resolve, this.retryBackoffMs * 2 ** attempt)
           );
+          continue;
         }
+        break;
       }
     }
     throw lastError;
