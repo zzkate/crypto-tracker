@@ -306,6 +306,16 @@ APP_API_KEY=... BASE_URL=http://localhost:3000 MODE=sweep METHOD=POST \
 `duration`, `endpoint`, `mode`, `method`, `body`, `sweep_end`). Сервер поднимается
 без `CMC_API_KEY`, поэтому кредиты CoinMarketCap не расходуются.
 
+## Бенчмарки
+
+`scripts/benchmark.mjs` — микробенчмарки репозиториев на stdlib (без сторонних
+пакетов): вставка/чтение монет, вставка цен, последняя цена, `listLatestPrices`,
+`syncOnce` с батчингом.
+
+```bash
+npm run bench
+```
+
 ## Ручной интеграционный прогон (реальный CoinMarketCap)
 
 В GitHub Actions: **Actions → Integration (CoinMarketCap) → Run workflow**.

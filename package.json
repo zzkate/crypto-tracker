@@ -14,7 +14,8 @@
     "test:coverage": "NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --runInBand --coverage",
     "test:e2e": "npm run build && NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --config jest.e2e.config.js --runInBand",
     "load": "node scripts/load-test.mjs",
-    "load:sweep": "MODE=sweep node scripts/load-test.mjs"
+    "load:sweep": "MODE=sweep node scripts/load-test.mjs",
+    "bench": "npm run build && NODE_OPTIONS=--disable-warning=ExperimentalWarning node scripts/benchmark.mjs"
   },
   "dependencies": {
     "axios": "^1.7.9",
