@@ -67,8 +67,14 @@ cp .env.example .env
 
 npm ci
 npm run build
-npm run start:env          # node --env-file=.env dist/server.js
+npm start        # подхватит .env, если он есть
 ```
+
+`npm start` использует `node --env-file-if-exists=.env`, поэтому работает в двух режимах:
+
+- **локально** — все переменные берутся из `.env`;
+- **CI/Docker** — `.env` может отсутствовать, переменные приходят из окружения
+  (GitHub Actions: `${{ secrets.* }}`, Docker Compose: `env_file: .env` или `-e`).
 
 Без `CMC_API_KEY` сервис тоже стартует: CRUD и чтение работают, но фоновая
 синхронизация отключена, а `POST /api/sync` вернёт `502`.
@@ -81,6 +87,19 @@ curl -H "Authorization: Bearer $APP_API_KEY" http://localhost:3000/api/coins
 ```
 
 Документация: <http://localhost:3000/docs>, спецификация: `/openapi.json`.
+
+## Просмотр в браузере
+
+После `npm start`:
+
+- Swagger UI — <http://localhost:3000/docs>
+- OpenAPI — <http://localhost:3000/openapi.json>
+- Health — <http://localhost:3000/health>
+
+В Swagger UI нажмите **Authorize** и вставьте значение `APP_API_KEY` из `.env`
+(без префикса `Bearer` — Swagger добавит его сам).
+
+Если порт 3000 занят: `PORT=3001 npm start` — переменная из shell перекрывает `.env`.
 
 ## Docker
 

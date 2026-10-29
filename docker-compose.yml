@@ -1,17 +1,15 @@
 services:
   app:
     build: .
-    ports:
-      - "${PORT:-3000}:3000"
+    # Все переменные приложения берутся из .env (локально/Docker),
+    # а в CI/GitHub Actions те же имена приходят из secrets -> env.
+    env_file:
+      - .env
     environment:
       PORT: 3000
-      APP_API_KEY: ${APP_API_KEY:?APP_API_KEY is required}
-      CMC_API_KEY: ${CMC_API_KEY:-}
-      CMC_BASE_URL: ${CMC_BASE_URL:-https://pro-api.coinmarketcap.com}
-      CMC_TIMEOUT_MS: ${CMC_TIMEOUT_MS:-5000}
-      SYNC_INTERVAL_MS: ${SYNC_INTERVAL_MS:-60000}
-      PRICE_CURRENCY: ${PRICE_CURRENCY:-USD}
       DB_PATH: /data/crypto.db
+    ports:
+      - "${PORT:-3000}:3000"
     volumes:
       - crypto-data:/data
     restart: unless-stopped

@@ -26,4 +26,4 @@ RUN mkdir -p /data && chown -R node:node /data
 USER node
 
 EXPOSE 3000
-CMD ["node", "dist/server.js"]
+CMD ["node", "--env-file-if-exists=.env", "dist/server.js"]

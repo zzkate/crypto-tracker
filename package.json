@@ -8,8 +8,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "start:env": "node --env-file=.env dist/server.js",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "start:env": "node --env-file-if-exists=.env dist/server.js",
     "test": "NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --runInBand",
     "test:coverage": "NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --runInBand --coverage"
   },
