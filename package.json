@@ -11,7 +11,8 @@
     "start": "node --env-file-if-exists=.env dist/server.js",
     "start:env": "node --env-file-if-exists=.env dist/server.js",
     "test": "NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --runInBand",
-    "test:coverage": "NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --runInBand --coverage"
+    "test:coverage": "NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --runInBand --coverage",
+    "test:e2e": "npm run build && NODE_OPTIONS=--disable-warning=ExperimentalWarning jest --config jest.e2e.config.js --runInBand"
   },
   "dependencies": {
     "axios": "^1.7.9",

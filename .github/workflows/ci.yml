@@ -33,6 +33,9 @@ jobs:
       - name: Tests (Jest + Supertest)
         run: npm run test:coverage
 
+      - name: E2E tests
+        run: npm run test:e2e
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4

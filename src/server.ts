@@ -49,6 +49,8 @@ function main(): void {
       db.close();
       process.exit(0);
     });
+    // Закрываем idle keep-alive соединения, чтобы close() завершился быстро.
+    server.closeIdleConnections();
 
     setTimeout(() => {
       console.error('[server] forced shutdown after timeout');

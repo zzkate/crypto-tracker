@@ -240,14 +240,19 @@ CREATE TABLE price_history (
 ## Тесты
 
 ```bash
-npm test              # 58 тестов, in-memory SQLite, без сети
+npm test              # 59 unit/integration тестов, in-memory SQLite, без сети
 npm run test:coverage # покрытие
+npm run test:e2e      # 11 E2E-тестов: собранный сервер + мок CMC + HTTP
 ```
 
 Покрыто: аутентификация, CRUD (позитивные и негативные сценарии), история и
 актуальные цены, ручная синхронизация, ошибки/таймауты внешнего API, фоновая
 джоба (запуск по интервалу, обработка ошибок, отсутствие параллельных запусков,
 остановка), OpenAPI/Swagger.
+
+E2E дополнительно проверяет реальный запуск `dist/server.js` с конфигом из env:
+CRUD по HTTP, фоновую синхронизацию с локальным мок-сервером CoinMarketCap,
+ошибку/таймаут внешнего API, PATCH no-op и graceful shutdown по `SIGTERM`.
 
 ## Ручной интеграционный прогон (реальный CoinMarketCap)
 
