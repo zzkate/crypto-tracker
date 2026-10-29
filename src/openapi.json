@@ -102,7 +102,13 @@
         },
         "responses": {
           "200": {
-            "description": "Обновлённая монета",
+            "description": "Обновлённая монета. Если данные не изменились — 200 и X-Changed: false (UPDATE не выполняется).",
+            "headers": {
+              "X-Changed": {
+                "description": "true — данные обновлены, false — изменений не было",
+                "schema": { "type": "string", "enum": ["true", "false"] }
+              }
+            },
             "content": {
               "application/json": { "schema": { "$ref": "#/components/schemas/Coin" } }
             }

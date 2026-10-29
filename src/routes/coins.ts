@@ -64,11 +64,22 @@ export function coinsRouter(ctx: AppContext): Router {
       const id = parseId(req.params.id);
       const input = parseCoinInput(req.body, true);
 
-      if (!getCoin(ctx.db, id)) throw new HttpError(404, 'coin not found', 'not_found');
+      const current = getCoin(ctx.db, id);
+      if (!current) throw new HttpError(404, 'coin not found', 'not_found');
+
+      // PATCH идемпотентен: если данные не изменились, UPDATE не выполняем.
+      const nextSymbol = input.symbol ?? current.symbol;
+      const nextName = input.name ?? current.name;
+      if (nextSymbol === current.symbol && nextName === current.name) {
+        res.set('X-Changed', 'false');
+        res.json(current);
+        return;
+      }
 
       try {
         const coin = updateCoin(ctx.db, id, input);
         if (!coin) throw new HttpError(404, 'coin not found', 'not_found');
+        res.set('X-Changed', 'true');
         res.json(coin);
       } catch (error) {
         if (isUniqueViolation(error)) {

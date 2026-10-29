@@ -92,8 +92,25 @@ describe('coins CRUD', () => {
       .set('Authorization', AUTH)
       .send({ name: 'Cardano updated' });
     expect(res.status).toBe(200);
+    expect(res.headers['x-changed']).toBe('true');
     expect(res.body.name).toBe('Cardano updated');
     expect(res.body.symbol).toBe('ADA');
+  });
+
+  it('PATCH с неизменёнными данными — 200 и X-Changed: false', async () => {
+    const created = await create({ symbol: 'ADA', name: 'Cardano' });
+    const res = await request(ctx.app)
+      .patch(`/api/coins/${created.body.id}`)
+      .set('Authorization', AUTH)
+      .send({ symbol: 'ada', name: 'Cardano' });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['x-changed']).toBe('false');
+    expect(res.body).toMatchObject({
+      id: created.body.id,
+      symbol: 'ADA',
+      name: 'Cardano'
+    });
   });
 
   it('отклоняет пустой PATCH (400)', async () => {
