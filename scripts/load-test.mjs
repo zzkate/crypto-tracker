@@ -9,6 +9,7 @@
 //   BASE_URL, APP_API_KEY, ENDPOINT, METHOD (GET|POST|...), BODY (JSON с {{n}}),
 //   CONCURRENCY, DURATION_SECONDS, MODE,
 //   SWEEP_START, SWEEP_END, SWEEP_STEP, SWEEP_DURATION_MS, P95_LIMIT_MS.
+import { writeFileSync } from 'node:fs';
 import { performance } from 'node:perf_hooks';
 
 const base = process.env.BASE_URL || 'http://127.0.0.1:3000';
@@ -115,6 +116,18 @@ if (mode === 'sweep') {
 
   console.table(rows);
   console.log(`max concurrency (0 ошибок, p95 <= ${p95Limit} мс): ${maxStable}`);
+
+  const md = [
+    `### Load sweep ${method} ${url}`,
+    '',
+    '| concurrency | rps | errors | p95 (мс) |',
+    '|---:|---:|---:|---:|'
+  ];
+  for (const r of rows) {
+    md.push(`| ${r.concurrency} | ${r.rps} | ${r.errors} | ${r.p95Ms} |`);
+  }
+  md.push('', `**Максимум конкурентности (0 ошибок, p95 <= ${p95Limit} мс): ${maxStable}**`, '');
+  writeFileSync('load-summary.md', md.join('\n'));
 } else {
   const concurrency = Number(process.env.CONCURRENCY || 50);
   const durationMs = Number(process.env.DURATION_SECONDS || 10) * 1000;
@@ -131,4 +144,18 @@ if (mode === 'sweep') {
       2
     )
   );
+
+  const md = [
+    `### Load test ${method} ${url}`,
+    '',
+    '| метрика | значение |',
+    '|---|---:|',
+    `| concurrency | ${concurrency} |`,
+    `| total requests | ${s.totalRequests} |`,
+    `| rps | ${s.rps} |`,
+    `| ok / errors | ${s.ok} / ${s.errors} (${s.errorRatePct}%) |`,
+    `| p50 / p95 / p99 | ${s.p50} / ${s.p95} / ${s.p99} мс |`,
+    ''
+  ].join('\n');
+  writeFileSync('load-summary.md', md);
 }

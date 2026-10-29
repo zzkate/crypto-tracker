@@ -19,3 +19,4 @@ npm-debug.log*
 
 # Артефакты CI
 load-results.txt
+load-summary.md

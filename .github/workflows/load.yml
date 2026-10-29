@@ -87,12 +87,21 @@ jobs:
           SWEEP_END: ${{ inputs.sweep_end }}
         run: node scripts/load-test.mjs | tee load-results.txt
 
+      - name: Render job summary
+        if: always()
+        run: |
+          if [ -f load-summary.md ]; then
+            cat load-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: load-results
-          path: load-results.txt
+          path: |
+            load-results.txt
+            load-summary.md
           if-no-files-found: ignore
 
       - name: Stop server
